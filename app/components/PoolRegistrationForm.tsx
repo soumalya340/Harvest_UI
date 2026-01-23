@@ -2,12 +2,11 @@
 
 import { useState } from 'react';
 import { useAptosMultiWalletWithRefresh } from '../providers/WalletProvider';
-import { contractFunctions, aptos } from '../utils/contract';
+import { contractFunctions } from '../utils/contract';
 
 export function PoolRegistrationForm() {
   const wallet = useAptosMultiWalletWithRefresh();
   const account = wallet.account;
-  const signAndSubmitTransaction = wallet.signAndSubmitTransaction;
   const [showForm, setShowForm] = useState(false);
   const [withBoost, setWithBoost] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -45,10 +44,9 @@ export function PoolRegistrationForm() {
       const startTimeUnix = Math.floor(new Date(startTime).getTime() / 1000).toString();
       const durationSeconds = (parseInt(duration) * 24 * 60 * 60).toString(); // Convert days to seconds
 
-      let transaction;
+      let txParams;
       if (withBoost) {
-        transaction = await contractFunctions.registerPoolWithBoostCoin(
-          poolOwner,
+        txParams = contractFunctions.registerPoolWithBoost(
           stakeMetadataAddress,
           rewardMetadataAddress,
           rewardAmount,
@@ -57,26 +55,28 @@ export function PoolRegistrationForm() {
           version,
           collectionIdentifier,
           collectionName,
-          boostPercent,
-          stakeType,
-          rewardType
+          boostPercent
         );
       } else {
-        transaction = await contractFunctions.registerPoolCoin(
-          poolOwner,
+        txParams = contractFunctions.registerPool(
           stakeMetadataAddress,
           rewardMetadataAddress,
-          rewardAmount,
           startTimeUnix,
-          durationSeconds,
-          stakeType,
-          rewardType
+          rewardAmount,
+          durationSeconds
         );
       }
 
-      const response = await signAndSubmitTransaction(transaction);
-      await aptos.waitForTransaction({ transactionHash: response.hash });
-      setSuccess(`Pool registered successfully! Hash: ${response.hash}`);
+      const txHash = await wallet.sendRawTransaction(
+        txParams.moduleAddress,
+        txParams.moduleName,
+        txParams.functionName,
+        txParams.rawArgs,
+        txParams.typeArgs,
+        true
+      );
+      
+      setSuccess(`Pool registered successfully! Hash: ${txHash}`);
       
       // Reset form
       setStakeMetadataAddress('');

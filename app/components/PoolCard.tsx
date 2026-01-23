@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAptosMultiWalletWithRefresh } from '../providers/WalletProvider';
-import { contractFunctions, aptos } from '../utils/contract';
+import { contractFunctions } from '../utils/contract';
 
 interface PoolCardProps {
   pool: {
@@ -22,7 +22,6 @@ interface PoolCardProps {
 export function PoolCard({ pool, stakeType, rewardType }: PoolCardProps) {
   const wallet = useAptosMultiWalletWithRefresh();
   const account = wallet.account;
-  const signAndSubmitTransaction = wallet.signAndSubmitTransaction;
   const [stakeAmount, setStakeAmount] = useState('');
   const [unstakeAmount, setUnstakeAmount] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,15 +37,22 @@ export function PoolCard({ pool, stakeType, rewardType }: PoolCardProps) {
     try {
       setLoading(true);
       setError(null);
-      const transaction = await contractFunctions.stakeCoin(
+      
+      const txParams = contractFunctions.stake(
         pool.objectAddress,
-        stakeAmount,
-        stakeType,
-        account
+        stakeAmount
       );
-      const response = await signAndSubmitTransaction(transaction);
-      await aptos.waitForTransaction({ transactionHash: response.hash });
-      setSuccess(`Staked successfully! Hash: ${response.hash}`);
+      
+      const txHash = await wallet.sendRawTransaction(
+        txParams.moduleAddress,
+        txParams.moduleName,
+        txParams.functionName,
+        txParams.rawArgs,
+        txParams.typeArgs,
+        true
+      );
+      
+      setSuccess(`Staked successfully! Hash: ${txHash}`);
       setStakeAmount('');
     } catch (err: any) {
       setError(err.message || 'Failed to stake');
@@ -64,15 +70,22 @@ export function PoolCard({ pool, stakeType, rewardType }: PoolCardProps) {
     try {
       setLoading(true);
       setError(null);
-      const transaction = await contractFunctions.unstakeCoin(
+      
+      const txParams = contractFunctions.unstake(
         pool.objectAddress,
-        unstakeAmount,
-        stakeType,
-        account
+        unstakeAmount
       );
-      const response = await signAndSubmitTransaction(transaction);
-      await aptos.waitForTransaction({ transactionHash: response.hash });
-      setSuccess(`Unstaked successfully! Hash: ${response.hash}`);
+      
+      const txHash = await wallet.sendRawTransaction(
+        txParams.moduleAddress,
+        txParams.moduleName,
+        txParams.functionName,
+        txParams.rawArgs,
+        txParams.typeArgs,
+        true
+      );
+      
+      setSuccess(`Unstaked successfully! Hash: ${txHash}`);
       setUnstakeAmount('');
     } catch (err: any) {
       setError(err.message || 'Failed to unstake');
@@ -90,14 +103,21 @@ export function PoolCard({ pool, stakeType, rewardType }: PoolCardProps) {
     try {
       setLoading(true);
       setError(null);
-      const transaction = await contractFunctions.harvestCoin(
-        pool.objectAddress,
-        rewardType,
-        account
+      
+      const txParams = contractFunctions.harvest(
+        pool.objectAddress
       );
-      const response = await signAndSubmitTransaction(transaction);
-      await aptos.waitForTransaction({ transactionHash: response.hash });
-      setSuccess(`Harvested successfully! Hash: ${response.hash}`);
+      
+      const txHash = await wallet.sendRawTransaction(
+        txParams.moduleAddress,
+        txParams.moduleName,
+        txParams.functionName,
+        txParams.rawArgs,
+        txParams.typeArgs,
+        true
+      );
+      
+      setSuccess(`Harvested successfully! Hash: ${txHash}`);
     } catch (err: any) {
       setError(err.message || 'Failed to harvest');
     } finally {
@@ -118,14 +138,21 @@ export function PoolCard({ pool, stakeType, rewardType }: PoolCardProps) {
     try {
       setLoading(true);
       setError(null);
-      const transaction = await contractFunctions.emergencyUnstakeCoin(
-        pool.objectAddress,
-        stakeType,
-        account
+      
+      const txParams = contractFunctions.emergencyUnstake(
+        pool.objectAddress
       );
-      const response = await signAndSubmitTransaction(transaction);
-      await aptos.waitForTransaction({ transactionHash: response.hash });
-      setSuccess(`Emergency unstaked successfully! Hash: ${response.hash}`);
+      
+      const txHash = await wallet.sendRawTransaction(
+        txParams.moduleAddress,
+        txParams.moduleName,
+        txParams.functionName,
+        txParams.rawArgs,
+        txParams.typeArgs,
+        true
+      );
+      
+      setSuccess(`Emergency unstaked successfully! Hash: ${txHash}`);
     } catch (err: any) {
       setError(err.message || 'Failed to emergency unstake');
     } finally {

@@ -14,7 +14,10 @@
     "lucide-react": "^0.400.0",
     "next": "16.1.4",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "supra-l1-sdk": "^4.6.0",
+    "supra-l1-sdk-core": "^2.0.1",
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

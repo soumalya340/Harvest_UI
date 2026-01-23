@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAptosMultiWalletWithRefresh } from '../providers/WalletProvider';
-import { contractFunctions, aptos } from '../utils/contract';
+import { contractFunctions } from '../utils/contract';
 
 interface BoostManagerProps {
   poolObj: string;
@@ -11,7 +11,6 @@ interface BoostManagerProps {
 export function BoostManager({ poolObj }: BoostManagerProps) {
   const wallet = useAptosMultiWalletWithRefresh();
   const account = wallet.account;
-  const signAndSubmitTransaction = wallet.signAndSubmitTransaction;
   const [boostType, setBoostType] = useState<'v1' | 'v2' | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,17 +35,25 @@ export function BoostManager({ poolObj }: BoostManagerProps) {
     try {
       setLoading(true);
       setError(null);
-      const transaction = await contractFunctions.boostV1(
+      
+      const txParams = contractFunctions.boostV1(
         poolObj,
         collectionOwner,
         collectionName,
         tokenName,
-        propertyVersion,
-        account
+        propertyVersion
       );
-      const response = await signAndSubmitTransaction(transaction);
-      await aptos.waitForTransaction({ transactionHash: response.hash });
-      setSuccess(`Boost v1 applied! Hash: ${response.hash}`);
+      
+      const txHash = await wallet.sendRawTransaction(
+        txParams.moduleAddress,
+        txParams.moduleName,
+        txParams.functionName,
+        txParams.rawArgs,
+        txParams.typeArgs,
+        true
+      );
+      
+      setSuccess(`Boost v1 applied! Hash: ${txHash}`);
       setBoostType(null);
     } catch (err: any) {
       setError(err.message || 'Failed to apply boost v1');
@@ -65,10 +72,19 @@ export function BoostManager({ poolObj }: BoostManagerProps) {
     try {
       setLoading(true);
       setError(null);
-      const transaction = await contractFunctions.boostV2(poolObj, nftObj, account);
-      const response = await signAndSubmitTransaction(transaction);
-      await aptos.waitForTransaction({ transactionHash: response.hash });
-      setSuccess(`Boost v2 applied! Hash: ${response.hash}`);
+      
+      const txParams = contractFunctions.boostV2(poolObj, nftObj);
+      
+      const txHash = await wallet.sendRawTransaction(
+        txParams.moduleAddress,
+        txParams.moduleName,
+        txParams.functionName,
+        txParams.rawArgs,
+        txParams.typeArgs,
+        true
+      );
+      
+      setSuccess(`Boost v2 applied! Hash: ${txHash}`);
       setBoostType(null);
     } catch (err: any) {
       setError(err.message || 'Failed to apply boost v2');
@@ -86,10 +102,19 @@ export function BoostManager({ poolObj }: BoostManagerProps) {
     try {
       setLoading(true);
       setError(null);
-      const transaction = await contractFunctions.removeBoost(poolObj, account);
-      const response = await signAndSubmitTransaction(transaction);
-      await aptos.waitForTransaction({ transactionHash: response.hash });
-      setSuccess(`Boost removed! Hash: ${response.hash}`);
+      
+      const txParams = contractFunctions.removeBoost(poolObj);
+      
+      const txHash = await wallet.sendRawTransaction(
+        txParams.moduleAddress,
+        txParams.moduleName,
+        txParams.functionName,
+        txParams.rawArgs,
+        txParams.typeArgs,
+        true
+      );
+      
+      setSuccess(`Boost removed! Hash: ${txHash}`);
     } catch (err: any) {
       setError(err.message || 'Failed to remove boost');
     } finally {

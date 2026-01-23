@@ -1,60 +1,50 @@
-import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
-import { AccountAddress, MoveStructId } from '@aptos-labs/ts-sdk';
+import { CONTRACT_ADDRESS, MODULE_NAME } from '../../constant';
 
-// Configure Aptos client
-const config = new AptosConfig({ network: Network.TESTNET });
-export const aptos = new Aptos(config);
-
-// Contract address - update this with your deployed contract address
-export const CONTRACT_ADDRESS = '0xYOUR_CONTRACT_ADDRESS'; // Update this
-
-// Module name
-const MODULE_NAME = 'harvest::script1';
-
-// Helper function to build transaction
-export async function buildTransaction(
-  functionName: string,
-  typeArguments: string[] = [],
-  functionArguments: any[] = [],
-  sender?: string
-) {
-  const transaction = await aptos.transaction.build.simple({
-    sender: sender || '', // Will be set by wallet if not provided
-    data: {
-      function: `${CONTRACT_ADDRESS}::${MODULE_NAME}::${functionName}`,
-      typeArguments,
-      functionArguments,
-    },
-  });
-  return transaction;
+// Helper to prepare transaction parameters
+export interface TransactionParams {
+  moduleAddress: string;
+  moduleName: string;
+  functionName: string;
+  typeArgs: string[];
+  args: Uint8Array[];
 }
 
-// Contract interaction functions
+// Raw args interface (before serialization)
+export interface RawTransactionParams {
+  moduleAddress: string;
+  moduleName: string;
+  functionName: string;
+  typeArgs: string[];
+  rawArgs: any[];
+}
+
+// Contract interaction functions - returns raw args for serialization
 export const contractFunctions = {
-  // Register pool without boost
-  async registerPoolCoin(
-    poolOwner: string,
+  // Register pool without boost (FA-based version)
+  registerPool(
     stakeMetadataAddress: string,
     rewardMetadataAddress: string,
-    rewardAmount: string,
     startTime: string,
-    duration: string,
-    stakeType: string,
-    rewardType: string
-  ) {
-    return buildTransaction('register_pool_coin', [stakeType, rewardType], [
-      poolOwner,
-      stakeMetadataAddress,
-      rewardMetadataAddress,
-      rewardAmount,
-      startTime,
-      duration,
-    ], poolOwner);
+    rewardAmount: string,
+    duration: string
+  ): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'register_pool',
+      typeArgs: [],
+      rawArgs: [
+        stakeMetadataAddress,   // Object<Metadata>
+        rewardMetadataAddress,  // Object<Metadata>
+        startTime,              // u64
+        rewardAmount,           // u64
+        duration,               // u64
+      ],
+    };
   },
 
-  // Register pool with boost
-  async registerPoolWithBoostCoin(
-    poolOwner: string,
+  // Register pool with boost (FA-based version)
+  registerPoolWithBoost(
     stakeMetadataAddress: string,
     rewardMetadataAddress: string,
     rewardAmount: string,
@@ -63,141 +53,217 @@ export const contractFunctions = {
     version: string,
     collectionIdentifier: string,
     collectionName: string,
-    boostPercent: string,
-    stakeType: string,
-    rewardType: string
-  ) {
-    return buildTransaction('register_pool_with_boost_coin', [stakeType, rewardType], [
-      poolOwner,
-      stakeMetadataAddress,
-      rewardMetadataAddress,
-      rewardAmount,
-      startTime,
-      duration,
-      version,
-      collectionIdentifier,
-      collectionName,
-      boostPercent,
-    ], poolOwner);
+    boostPercent: string
+  ): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'register_pool_with_boost',
+      typeArgs: [],
+      rawArgs: [
+        stakeMetadataAddress,   // Object<Metadata>
+        rewardMetadataAddress,  // Object<Metadata>
+        rewardAmount,           // u64
+        startTime,              // u64
+        duration,               // u64
+        version,                // u64
+        collectionIdentifier,   // address
+        collectionName,         // String
+        boostPercent,           // u128
+      ],
+    };
   },
 
-  // Stake tokens
-  async stakeCoin(
+  // Stake tokens (FA-based version)
+  stake(
     poolObj: string,
-    stakeAmount: string,
-    stakeType: string,
-    sender?: string
-  ) {
-    return buildTransaction('stake_coin', [stakeType], [
-      poolObj,
-      stakeAmount,
-    ], sender);
+    stakeAmount: string
+  ): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'stake',
+      typeArgs: [],
+      rawArgs: [
+        poolObj,      // Object<StakePool>
+        stakeAmount,  // u64
+      ],
+    };
   },
 
-  // Unstake tokens
-  async unstakeCoin(
+  // Unstake tokens (FA-based version)
+  unstake(
     poolObj: string,
-    stakeAmount: string,
-    stakeType: string,
-    sender?: string
-  ) {
-    return buildTransaction('unstake_coin', [stakeType], [
-      poolObj,
-      stakeAmount,
-    ], sender);
+    stakeAmount: string
+  ): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'unstake',
+      typeArgs: [],
+      rawArgs: [
+        poolObj,      // Object<StakePool>
+        stakeAmount,  // u64
+      ],
+    };
   },
 
-  // Harvest rewards
-  async harvestCoin(
-    poolObj: string,
-    rewardType: string,
-    sender?: string
-  ) {
-    return buildTransaction('harvest_coin', [rewardType], [
-      poolObj,
-    ], sender);
+  // Harvest rewards (FA-based version)
+  harvest(
+    poolObj: string
+  ): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'harvest',
+      typeArgs: [],
+      rawArgs: [
+        poolObj,  // Object<StakePool>
+      ],
+    };
   },
 
-  // Deposit reward coins
-  async depositRewardCoinsCoin(
+  // Deposit reward coins (FA-based version)
+  depositRewardCoins(
     poolObj: string,
-    rewardMetadataAddress: string,
-    rewardAmount: string,
-    rewardType: string,
-    sender?: string
-  ) {
-    return buildTransaction('deposit_reward_coins_coin', [rewardType], [
-      poolObj,
-      rewardMetadataAddress,
-      rewardAmount,
-    ], sender);
+    rewardAmount: string
+  ): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'deposit_reward_coins',
+      typeArgs: [],
+      rawArgs: [
+        poolObj,      // Object<StakePool>
+        rewardAmount, // u64
+      ],
+    };
   },
 
-  // Add rewards and time
-  async addRewardsAndTimeCoin(
+  // Add rewards and time (FA-based version)
+  addRewardsAndTime(
     poolObj: string,
-    rewardMetadataAddress: string,
     rewardsAddOn: string,
-    timeAddOn: string,
-    rewardType: string,
-    sender?: string
-  ) {
-    return buildTransaction('add_rewards_and_time_coin', [rewardType], [
-      poolObj,
-      rewardMetadataAddress,
-      rewardsAddOn,
-      timeAddOn,
-    ], sender);
+    timeAddOn: string
+  ): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'add_rewards_and_time',
+      typeArgs: [],
+      rawArgs: [
+        poolObj,      // Object<StakePool>
+        rewardsAddOn, // u64
+        timeAddOn,    // u64
+      ],
+    };
   },
 
-  // Emergency unstake
-  async emergencyUnstakeCoin(
-    poolObj: string,
-    stakeType: string,
-    sender?: string
-  ) {
-    return buildTransaction('emergency_unstake_coin', [stakeType], [
-      poolObj,
-    ], sender);
+  // Emergency unstake (FA-based version)
+  emergencyUnstake(
+    poolObj: string
+  ): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'emergency_unstake',
+      typeArgs: [],
+      rawArgs: [
+        poolObj,  // Object<StakePool>
+      ],
+    };
   },
 
   // Boost v1
-  async boostV1(
+  boostV1(
     poolObj: string,
     collectionOwner: string,
     collectionName: string,
     tokenName: string,
-    propertyVersion: string,
-    sender?: string
-  ) {
-    return buildTransaction('boost_v1', [], [
-      poolObj,
-      collectionOwner,
-      collectionName,
-      tokenName,
-      propertyVersion,
-    ], sender);
+    propertyVersion: string
+  ): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'boost_v1',
+      typeArgs: [],
+      rawArgs: [
+        poolObj,           // Object<StakePool>
+        collectionOwner,   // address
+        collectionName,    // String
+        tokenName,         // String
+        propertyVersion,   // u64
+      ],
+    };
   },
 
   // Boost v2
-  async boostV2(
+  boostV2(
     poolObj: string,
-    nftObj: string,
-    sender?: string
-  ) {
-    return buildTransaction('boost_v2', [], [
-      poolObj,
-      nftObj,
-    ], sender);
+    nftObj: string
+  ): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'boost_v2',
+      typeArgs: [],
+      rawArgs: [
+        poolObj,  // Object<StakePool>
+        nftObj,   // Object<DigitalAssetToken>
+      ],
+    };
   },
 
   // Remove boost
-  async removeBoost(poolObj: string, sender?: string) {
-    return buildTransaction('remove_boost', [], [poolObj], sender);
+  removeBoost(poolObj: string): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'remove_boost',
+      typeArgs: [],
+      rawArgs: [
+        poolObj,  // Object<StakePool>
+      ],
+    };
   },
 
   // Toggle whitelisted user (admin)
-  async toggleWhitelistedUser(user: string, sender?: string) {
-    return buildTransaction('toggle_whitelisted_user', [], [user], sender);
+  toggleWhitelistedUser(user: string): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'toggle_whitelisted_user',
+      typeArgs: [],
+      rawArgs: [
+        user,  // address
+      ],
+    };
+  },
+
+  // Enable emergency (admin)
+  enableEmergency(poolObj: string): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'enable_emergency',
+      typeArgs: [],
+      rawArgs: [
+        poolObj,  // Object<StakePool>
+      ],
+    };
+  },
+
+  // Withdraw reward to treasury (admin)
+  withdrawRewardToTreasury(poolObj: string, amount: string): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MODULE_NAME,
+      functionName: 'withdraw_reward_to_treasury',
+      typeArgs: [],
+      rawArgs: [
+        poolObj,  // Object<StakePool>
+        amount,   // u64
+      ],
+    };
   },
 };

@@ -1,22 +1,23 @@
 # Harvest Staking Platform
 
-A modern, user-friendly UI for the Harvest staking contracts on Aptos. This application allows users to stake tokens, earn rewards, and manage staking pools with NFT boost functionality.
+A modern, user-friendly UI for the Harvest staking contracts on Supra. This application allows users to stake tokens, earn rewards, and manage staking pools with NFT boost functionality.
 
 ## Features
 
-- 🔐 **Wallet Integration**: Connect with Petra, Pontem, and other Aptos wallets
+- 🔐 **Wallet Integration**: Connect with Starkey wallet on Supra Network
 - 📊 **Pool Management**: View and interact with staking pools
 - 💰 **Staking & Unstaking**: Easy token staking and unstaking interface
 - 🌾 **Reward Harvesting**: Claim your staking rewards
 - ⚡ **NFT Boosts**: Apply NFT boosts (v1 and v2) to increase rewards
 - 🏗️ **Pool Registration**: Create new staking pools with optional boost support
 - 🚨 **Emergency Unstake**: Emergency unstake functionality when needed
+- 🔄 **Proper Serialization**: Uses supra-multiwallet pattern for correct argument serialization
 
 ## Prerequisites
 
 - Node.js 18+ and npm
-- An Aptos wallet (Petra or Pontem recommended)
-- Deployed Harvest contracts on Aptos
+- Starkey wallet extension for Supra Network
+- Deployed Harvest contracts on Supra
 
 ## Installation
 
@@ -30,8 +31,8 @@ npm install
 export const CONTRACT_ADDRESS = '0xYOUR_DEPLOYED_CONTRACT_ADDRESS';
 ```
 
-3. (Optional) Update the network in `app/utils/contract.ts` and `app/providers/WalletProvider.tsx`:
-   - Change `Network.TESTNET` to `Network.MAINNET` for production
+3. The app is configured to work with Supra Testnet (chainId: 6) by default
+   - Update the chainId in `app/hooks/useStarkeyWallet.ts` if needed
 
 ## Running the Application
 
@@ -48,8 +49,8 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ### Connecting Your Wallet
 
 1. Click "Connect Wallet" in the top right
-2. Select your preferred wallet (Petra, Pontem, etc.)
-3. Approve the connection in your wallet
+2. Approve the connection in your Starkey wallet
+3. Ensure you're on the correct network (Supra Testnet or Mainnet)
 
 ### Staking Tokens
 
@@ -88,49 +89,93 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## Project Structure
 
 ```
-harvest/
+harvest-ui/
 ├── app/
 │   ├── components/
 │   │   ├── WalletButton.tsx      # Wallet connection UI
 │   │   ├── PoolCard.tsx          # Individual pool display and actions
 │   │   ├── PoolRegistrationForm.tsx  # Pool creation form
-│   │   └── BoostManager.tsx      # NFT boost management
+│   │   ├── BoostManager.tsx      # NFT boost management
+│   │   └── ConnectWalletHandler.tsx  # Wallet connection handler
+│   ├── hooks/
+│   │   ├── useStarkeyWallet.ts   # Starkey wallet integration
+│   │   └── useConversionUtils.ts # Argument serialization utilities
 │   ├── providers/
-│   │   └── WalletProvider.tsx    # Aptos wallet adapter provider
+│   │   └── WalletProvider.tsx    # Wallet provider
 │   ├── utils/
 │   │   └── contract.ts           # Contract interaction utilities
-│   ├── layout.tsx                # Root layout with wallet provider
+│   ├── layout.tsx                # Root layout
 │   └── page.tsx                  # Main application page
-├── harvest-contracts/            # Aptos Move contracts
+├── harvest-contracts/            # Move contracts
+│   └── scripts.move              # Contract entry functions
+├── FUNCTION_CALLS.md             # Detailed function call documentation
 └── package.json
 ```
 
 ## Contract Functions Supported
 
-All functions from `harvest::script1` module are supported:
+All main functions from `harvest::script1` module are supported:
 
-- `register_pool_coin` / `register_pool_with_boost_coin`
-- `stake_coin`
-- `unstake_coin`
-- `harvest_coin`
-- `deposit_reward_coins_coin`
-- `add_rewards_and_time_coin`
-- `emergency_unstake_coin`
-- `boost_v1` / `boost_v2`
-- `remove_boost`
-- `toggle_whitelisted_user`
+### Core Functions (FA-based)
+- `register_pool` - Register a new staking pool
+- `register_pool_with_boost` - Register a pool with NFT boost
+- `stake` - Stake tokens into a pool
+- `unstake` - Unstake tokens from a pool
+- `harvest` - Harvest rewards from a pool
+
+### Additional Functions
+- `deposit_reward_coins` - Add more rewards to a pool
+- `add_rewards_and_time` - Extend pool duration and rewards
+- `emergency_unstake` - Emergency unstake all tokens
+- `boost_v1` / `boost_v2` - Apply NFT boosts
+- `remove_boost` - Remove NFT boost
+- `toggle_whitelisted_user` - Admin function
+- `enable_emergency` - Admin function
+- `withdraw_reward_to_treasury` - Admin function
+
+For detailed usage examples, see [FUNCTION_CALLS.md](./FUNCTION_CALLS.md).
 
 ## Configuration
 
 ### Network Configuration
 
-Update the network in:
-- `app/utils/contract.ts`: Change `Network.TESTNET` to your desired network
-- `app/providers/WalletProvider.tsx`: Update `dappConfig` network
+The app is configured for Supra Testnet (chainId: 6) by default. To change:
+- Update `chainId` in `app/hooks/useStarkeyWallet.ts` (line 213)
+- Change from `'6'` (Testnet) to `'8'` (Mainnet)
 
 ### Contract Address
 
-Update `CONTRACT_ADDRESS` in `app/utils/contract.ts` with your deployed contract address.
+Update `CONTRACT_ADDRESS` in `app/utils/contract.ts` with your deployed contract address:
+
+```typescript
+export const CONTRACT_ADDRESS = '0xYOUR_DEPLOYED_CONTRACT_ADDRESS';
+```
+
+## Key Integration Features
+
+### Supra-Multiwallet Pattern
+
+This application uses the supra-multiwallet reference pattern for proper argument serialization:
+
+1. **useConversionUtils**: Provides serialization utilities for Move types (u8, u64, u128, address, String, etc.)
+2. **Automatic Serialization**: The wallet hook automatically serializes arguments based on function signatures
+3. **Type Safety**: Function calls are type-checked and properly formatted
+
+Example:
+```typescript
+// The contract function returns raw args
+const txParams = contractFunctions.stake(poolAddress, amount);
+
+// The wallet hook serializes them automatically
+const txHash = await sendRawTransaction(
+  txParams.moduleAddress,
+  txParams.moduleName,
+  txParams.functionName,
+  txParams.rawArgs,  // Raw args (not yet serialized)
+  txParams.typeArgs,
+  true  // Enable automatic serialization
+);
+```
 
 ## Development
 
