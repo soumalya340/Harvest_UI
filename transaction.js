@@ -13,9 +13,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// ============================================
-// CONFIGURATION
-// ============================================
+
 
 const CONFIG = {
     CONTRACT_ADDRESS: '0x7896b0fb2126899f0b24cd9369fb70fc4f4ff183b1e50c5e9277c83746eb7d2e',
