@@ -9,9 +9,20 @@
 export const CONTRACT_ADDRESS = '0x7896b0fb2126899f0b24cd9369fb70fc4f4ff183b1e50c5e9277c83746eb7d2e';
 
 /**
- * Contract module name
+ * Main script module name (transaction entry functions)
  */
-export const MODULE_NAME = 'script1';
+export const MODULE_NAME = 'script6';
+
+/**
+ * Staking/view module name (for view functions like get_total_pools_count)
+ */
+export const STAKE_MODULE_NAME = 'stake6';
+
+/**
+ * Additional module names for related token contracts (same deployer address)
+ */
+export const DOG_TOKEN_MODULE_NAME = 'dog_token_fa';
+export const MOCK_USDC_MODULE_NAME = 'mock_usdc_fa';
 
 /**
  * Network Configuration
@@ -125,6 +136,9 @@ export const parseTokenAmount = (
 export default {
   CONTRACT_ADDRESS,
   MODULE_NAME,
+  STAKE_MODULE_NAME,
+  DOG_TOKEN_MODULE_NAME,
+  MOCK_USDC_MODULE_NAME,
   NETWORK_CONFIG,
   TOKEN_DECIMALS,
   TRANSACTION_CONFIG,

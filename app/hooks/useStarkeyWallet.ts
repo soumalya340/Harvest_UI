@@ -13,15 +13,18 @@ export const WALLET_EVENTS = {
 // Storage key
 const STORAGE_KEY = 'starkey.connected';
 
+// ============================================
+// NETWORK CONFIGURATION - MUST MATCH YOUR CONTRACT!
+// ============================================
+const EXPECTED_CHAIN_ID = '6'; // Supra Testnet (your contract is here)
+const NETWORK_NAME = 'Supra Testnet';
+
 const useStarkeyWallet = () => {
-  // Get conversion utilities
   const conversionUtils = useConversionUtils();
 
-  // Get Starkey provider
   const getProvider = () =>
     typeof window !== 'undefined' && (window as any)?.starkey?.supra;
 
-  // States
   const [provider, setProvider] = useState<any>(getProvider());
   const [isExtensionInstalled, setIsExtensionInstalled] = useState<boolean>(false);
   const [accounts, setAccounts] = useState<string[]>([]);
@@ -30,12 +33,12 @@ const useStarkeyWallet = () => {
   const [connected, setConnected] = useState<boolean>(false);
   const [transactions, setTransactions] = useState<{ hash: string }[]>([]);
   const [networkData, setNetworkData] = useState<any>({});
+  const [currentChainId, setCurrentChainId] = useState<string>('');
 
   const addTransaction = (hash: string) => {
     setTransactions((prev) => [{ hash }, ...prev]);
   };
 
-  // Check if Starkey extension is installed
   const checkExtensionInstalled = async () => {
     const starkeyProvider = getProvider();
     setProvider(starkeyProvider);
@@ -44,7 +47,6 @@ const useStarkeyWallet = () => {
     return isInstalled;
   };
 
-  // Update accounts from provider
   const updateAccounts = async () => {
     const starkeyProvider = provider || getProvider();
     if (!starkeyProvider) return;
@@ -55,6 +57,7 @@ const useStarkeyWallet = () => {
         setAccounts(responseAcc);
         setConnected(true);
         await updateBalance(responseAcc[0]);
+        await getNetworkData();
         window.dispatchEvent(new Event(WALLET_EVENTS.CONNECTED));
       }
     } catch (error) {
@@ -64,7 +67,6 @@ const useStarkeyWallet = () => {
     }
   };
 
-  // Update balance
   const updateBalance = async (address: string) => {
     const starkeyProvider = provider || getProvider();
     if (!starkeyProvider || !address) {
@@ -85,7 +87,6 @@ const useStarkeyWallet = () => {
     }
   };
 
-  // Get network data
   const getNetworkData = async () => {
     const starkeyProvider = provider || getProvider();
     if (!starkeyProvider) return {};
@@ -93,6 +94,12 @@ const useStarkeyWallet = () => {
     try {
       const data = await starkeyProvider.getChainId();
       setNetworkData(data || {});
+      
+      if (data?.chainId) {
+        setCurrentChainId(data.chainId.toString());
+        console.log('Current wallet chain ID:', data.chainId);
+      }
+      
       return data || {};
     } catch (error) {
       console.error('Error getting network data:', error);
@@ -101,7 +108,58 @@ const useStarkeyWallet = () => {
     }
   };
 
-  // Connect wallet
+  // ============================================
+  // CRITICAL: Ensure correct network before transactions
+  // ============================================
+  const ensureCorrectNetwork = async (): Promise<boolean> => {
+    const starkeyProvider = provider || getProvider();
+    if (!starkeyProvider) {
+      throw new Error('Wallet not connected');
+    }
+
+    try {
+      const networkInfo = await starkeyProvider.getChainId();
+      const walletChainId = networkInfo?.chainId?.toString();
+      
+      console.log('🔍 Network Check:');
+      console.log('   Wallet Chain ID:', walletChainId);
+      console.log('   Expected Chain ID:', EXPECTED_CHAIN_ID);
+      
+      if (walletChainId !== EXPECTED_CHAIN_ID) {
+        console.log(`⚠️ Wrong network! Switching to ${NETWORK_NAME}...`);
+        
+        try {
+          await starkeyProvider.changeNetwork({ chainId: EXPECTED_CHAIN_ID });
+          console.log('✅ Network switched successfully!');
+          
+          // Wait for switch to complete
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          // Update accounts and balance after network switch
+          await updateAccounts();
+          
+          return true;
+        } catch (switchError: any) {
+          console.error('❌ Failed to switch network:', switchError);
+          throw new Error(
+            `Please switch your wallet to ${NETWORK_NAME} (Chain ID: ${EXPECTED_CHAIN_ID}). ` +
+            `Your wallet is currently on Chain ID: ${walletChainId} (Mainnet). ` +
+            `Open Starkey wallet → Settings → Network → Select Testnet`
+          );
+        }
+      }
+      
+      console.log('✅ Already on correct network');
+      return true;
+    } catch (error: any) {
+      if (error.message.includes('Please switch')) {
+        throw error;
+      }
+      console.error('Error checking network:', error);
+      throw new Error('Failed to verify network. Please check your wallet connection.');
+    }
+  };
+
   const connectWallet = async () => {
     const starkeyProvider = provider || getProvider();
 
@@ -116,26 +174,28 @@ const useStarkeyWallet = () => {
     setLoading(true);
 
     try {
-      // Connect to Starkey
       await starkeyProvider.connect();
       
-      // Get accounts
       const responseAcc = await starkeyProvider.account();
 
       if (!responseAcc || responseAcc.length === 0) {
         throw new Error('No account found in Starkey wallet');
       }
 
-      // Update state
       setAccounts(responseAcc);
       setConnected(true);
       localStorage.setItem(STORAGE_KEY, 'true');
 
-      // Get balance and network
       await updateBalance(responseAcc[0]);
       await getNetworkData();
 
-      // Dispatch connection event
+      // Check and switch to correct network
+      try {
+        await ensureCorrectNetwork();
+      } catch (networkError: any) {
+        console.warn('Network warning:', networkError.message);
+      }
+
       window.dispatchEvent(
         new CustomEvent(WALLET_EVENTS.CONNECTED, {
           detail: {
@@ -161,7 +221,6 @@ const useStarkeyWallet = () => {
     }
   };
 
-  // Disconnect wallet
   const disconnectWallet = async () => {
     const starkeyProvider = provider || getProvider();
 
@@ -173,6 +232,7 @@ const useStarkeyWallet = () => {
       setAccounts([]);
       setConnected(false);
       setBalance('0');
+      setCurrentChainId('');
       localStorage.removeItem(STORAGE_KEY);
       
       window.dispatchEvent(new Event(WALLET_EVENTS.DISCONNECTED));
@@ -181,11 +241,9 @@ const useStarkeyWallet = () => {
     }
   };
 
-  // Helper to serialize arguments based on function signature
   const serializeArguments = (functionName: string, rawArgs: any[]): Uint8Array[] => {
     const serializedArgs: Uint8Array[] = [];
 
-    // Define the argument types for each function
     const functionSignatures: Record<string, string[]> = {
       'register_pool': ['address', 'address', 'u64', 'u64', 'u64'],
       'register_pool_with_boost': ['address', 'address', 'u64', 'u64', 'u64', 'u64', 'address', 'string', 'u128'],
@@ -201,6 +259,7 @@ const useStarkeyWallet = () => {
       'toggle_whitelisted_user': ['address'],
       'enable_emergency': ['address'],
       'withdraw_reward_to_treasury': ['address', 'u64'],
+      'mint': ['address', 'u64'], // dog_token_fa::mint, mock_usdc_fa::mint (recipient, amount)
     };
 
     const argTypes = functionSignatures[functionName];
@@ -248,14 +307,13 @@ const useStarkeyWallet = () => {
     return serializedArgs;
   };
 
-  // Send raw transaction (accepts either pre-serialized or raw args)
   const sendRawTransaction = async (
     moduleAddress: string,
     moduleName: string,
     functionName: string,
     params: any[] = [],
     runTimeParams: any[] = [],
-    isRawArgs: boolean = true // New parameter to indicate if args need serialization
+    isRawArgs: boolean = true
   ) => {
     const starkeyProvider = provider || getProvider();
     
@@ -266,12 +324,17 @@ const useStarkeyWallet = () => {
     try {
       setLoading(true);
 
-      // Serialize arguments if they are raw
+      // ============================================
+      // CRITICAL: Check network BEFORE sending transaction
+      // ============================================
+      console.log('🔄 Checking network before transaction...');
+      await ensureCorrectNetwork();
+
       const serializedParams = isRawArgs ? serializeArguments(functionName, params) : params;
 
       const rawTxPayload = [
         accounts[0],
-        0, // sequence number
+        0,
         moduleAddress,
         moduleName,
         functionName,
@@ -282,35 +345,20 @@ const useStarkeyWallet = () => {
 
       const data = await starkeyProvider.createRawTransactionData(rawTxPayload);
       
-      // Get current chain ID from the provider
-      let currentChainId = '6'; // Default to Supra testnet
-      try {
-        const networkInfo = await starkeyProvider.getChainId();
-        if (networkInfo?.chainId) {
-          currentChainId = networkInfo.chainId.toString();
-          console.log('Using chain ID from provider:', currentChainId);
-        }
-      } catch (e) {
-        console.warn('Could not get chain ID from provider, using default:', currentChainId);
-      }
-      
-      console.log('Sending transaction with:', {
-        from: accounts[0],
-        to: moduleAddress,
-        chainId: currentChainId,
-        functionName,
-      });
+      // ALWAYS use the expected chain ID, not what wallet reports
+      console.log('📤 Sending transaction on chain ID:', EXPECTED_CHAIN_ID);
       
       const txHash = await starkeyProvider.sendTransaction({
         data,
         from: accounts[0],
         to: moduleAddress,
-        chainId: currentChainId,
+        chainId: EXPECTED_CHAIN_ID, // Force correct chain ID
         value: '',
       });
 
       if (txHash) {
         addTransaction(txHash);
+        console.log('✅ Transaction sent:', txHash);
       }
 
       return txHash;
@@ -322,7 +370,6 @@ const useStarkeyWallet = () => {
     }
   };
 
-  // Sign message
   const signMessage = async (message: string, nonce = '12345') => {
     const starkeyProvider = provider || getProvider();
     
@@ -340,7 +387,6 @@ const useStarkeyWallet = () => {
 
       const { publicKey, signature } = response;
       
-      // Verify signature
       const verified = nacl.sign.detached.verify(
         new TextEncoder().encode(message),
         Uint8Array.from(Buffer.from(signature.slice(2), 'hex')),
@@ -354,7 +400,6 @@ const useStarkeyWallet = () => {
     }
   };
 
-  // Switch network
   const switchToChain = async (chainId: string) => {
     const starkeyProvider = provider || getProvider();
     
@@ -364,24 +409,23 @@ const useStarkeyWallet = () => {
 
     try {
       await starkeyProvider.changeNetwork({ chainId });
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await getNetworkData();
+      await updateAccounts();
     } catch (error) {
       console.error('Error switching network:', error);
       throw error;
     }
   };
 
-  // Initialize on mount
   useEffect(() => {
     checkExtensionInstalled();
 
-    // Check if previously connected
     const wasConnected = localStorage.getItem(STORAGE_KEY) === 'true';
     if (wasConnected) {
       updateAccounts();
     }
 
-    // Listen for account changes
     const starkeyProvider = getProvider();
     if (starkeyProvider && starkeyProvider.on) {
       starkeyProvider.on('accountChanged', (newAccount: string) => {
@@ -401,7 +445,6 @@ const useStarkeyWallet = () => {
       });
     }
 
-    // Polling for extension installation
     const interval = setInterval(async () => {
       const isInstalled = await checkExtensionInstalled();
       if (isInstalled) {
@@ -409,7 +452,7 @@ const useStarkeyWallet = () => {
       }
     }, 1000);
 
-    setTimeout(() => clearInterval(interval), 10000); // Stop after 10s
+    setTimeout(() => clearInterval(interval), 10000);
 
     return () => {
       clearInterval(interval);
@@ -417,7 +460,6 @@ const useStarkeyWallet = () => {
   }, []);
 
   return {
-    // State
     accounts,
     account: accounts[0] || null,
     balance,
@@ -427,8 +469,8 @@ const useStarkeyWallet = () => {
     transactions,
     networkData,
     provider,
+    currentChainId,
 
-    // Methods
     connectWallet,
     disconnectWallet,
     sendRawTransaction,
@@ -439,6 +481,7 @@ const useStarkeyWallet = () => {
     getNetworkData,
     checkExtensionInstalled,
     addTransaction,
+    ensureCorrectNetwork,
   };
 };
 

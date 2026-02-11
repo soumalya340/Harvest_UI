@@ -1,4 +1,4 @@
-import { CONTRACT_ADDRESS, MODULE_NAME } from '../../constant';
+import { CONTRACT_ADDRESS, MODULE_NAME, DOG_TOKEN_MODULE_NAME, MOCK_USDC_MODULE_NAME } from '../../constant';
 
 // Helper to prepare transaction parameters
 export interface TransactionParams {
@@ -264,6 +264,28 @@ export const contractFunctions = {
         poolObj,  // Object<StakePool>
         amount,   // u64
       ],
+    };
+  },
+
+  // Faucet: Dog Token mint (dog_token_fa::mint)
+  mintDogToken(recipient: string, amount: string): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: DOG_TOKEN_MODULE_NAME,
+      functionName: 'mint',
+      typeArgs: [],
+      rawArgs: [recipient, amount], // address, u64
+    };
+  },
+
+  // Faucet: Mock USDC mint (mock_usdc_fa::mint)
+  mintMockUsdc(recipient: string, amount: string): RawTransactionParams {
+    return {
+      moduleAddress: CONTRACT_ADDRESS,
+      moduleName: MOCK_USDC_MODULE_NAME,
+      functionName: 'mint',
+      typeArgs: [],
+      rawArgs: [recipient, amount], // address, u64
     };
   },
 };
